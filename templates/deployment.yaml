@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "dash-chart.fullname" . }}-mysql-deployment
+spec:
+  replicas: {{ .Values.deployment.db.replicas }}
+  selector:
+    matchLabels:
+      app: {{ template "dash-chart.fullname" . }}-mysql-dash
+      # chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+      # release: {{ .Release.Name }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: {{ template "dash-chart.fullname" . }}-mysql-dash
+        # release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: {{ template "dash-chart.fullname" . }}-mysql-container
+        image: "{{ .Values.deployment.db.image }}:{{ .Values.deployment.db.tag }}"
+        env:
+          - name: MYSQL_USER
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.secrets.name }}
+                key: {{ .Values.secrets.MYSQL_USER }}
+          - name: MYSQL_PASS
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.secrets.name }}
+                key: {{ .Values.secrets.MYSQL_PASS }}
+          - name: MYSQL_ROOT_PASSWORD
+            # value: root1
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.secrets.name }}
+                key: {{ .Values.secrets.MYSQL_ROOT_PASSWORD }}
+          - name: MYSQL_DATABASE
+            value: {{ .Values.deployment.db.MYSQL_DATABASE }}
+        ports:
+        - containerPort: {{ .Values.deployment.db.container_port }}
+        resources: {}
+        volumeMounts:
+        - name: {{ template "dash-chart.fullname" . }}-pvc
+          mountPath: {{ .Values.deployment.db.volume_mounts.mysql }}
+        - name: {{ template "dash-chart.fullname" . }}-initdb
+          mountPath: {{ .Values.deployment.db.volume_mounts.initdb }}     
+      restartPolicy: Always
+      volumes:
+      - name: {{ template "dash-chart.fullname" . }}-pvc
+        persistentVolumeClaim:
+          claimName: {{ template "dash-chart.fullname" . }}-pvc
+      - name: {{ template "dash-chart.fullname" . }}-initdb
+        configMap:
+          name: {{ template "dash-chart.fullname" . }}-configmap
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "dash-chart.fullname" . }}-web-deployment
+spec:
+  replicas: {{ .Values.deployment.web.replicas }}
+  selector:
+    matchLabels:
+      app: {{ template "dash-chart.fullname" . }}-web-dash
+  template:
+    metadata:
+      labels:
+        app: {{ template "dash-chart.fullname" . }}-web-dash
+    spec:
+      containers:
+      - image: "{{ .Values.deployment.web.image }}:{{ .Values.deployment.web.tag }}"
+        imagePullPolicy: Always
+        name: {{ template "dash-chart.fullname" . }}-web-container
+        env:
+          - name: MY_SQL_DASH_SERVICE
+            value: {{ template "dash-chart.fullname" . }}-mysql-service
+          - name: DB_USERNAME
+            value: root
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.secrets.name }}
+                key: {{ .Values.secrets.MYSQL_ROOT_PASSWORD }}
+        ports:
+        - containerPort: {{ .Values.deployment.web.container_port }}
+      restartPolicy: Always

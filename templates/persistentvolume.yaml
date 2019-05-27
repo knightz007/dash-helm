@@ -1,0 +1,13 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: {{ template "dash-chart.fullname" . }}-pv
+spec:
+  storageClassName: {{ .Values.persistentVolume.storageClassName }}
+  capacity:
+    storage: {{ .Values.persistentVolume.storage }}
+  accessModes:
+    - {{ .Values.persistentVolume.accessModes }}
+  gcePersistentDisk:
+    pdName: {{ .Values.persistentVolume.pdName }}
+    fsType: {{ .Values.persistentVolume.fsType }}
